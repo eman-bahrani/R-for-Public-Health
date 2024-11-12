@@ -1,7 +1,6 @@
 ---
 title: "Weeks 5 and 6"
-output:
-  pdf_document: default
+output: html_notebook
 ---
 
 # Set Up
@@ -23,7 +22,7 @@ library(labelled)
 
 ```
 
-# Read Data
+# Prepare Data
 
 ```{r Demo Data}
 
@@ -141,8 +140,118 @@ all <- demo_all %>%
   left_join(bmi_all, by = "seqn")
 ```
 
+# Week 5 Tasks
 
-# Task 1: Basic Plot Creation
+## Task 1: Descriptive Statistics
+
+```{r BMI and Age}
+
+# Calculate descriptive statistics
+descr_stat <- all %>%
+  summarise(
+    mean_bmi = mean(bmi, na.rm = T),
+    sd_bmi = sd(bmi, na.rm = T),
+    iqr_bmi = IQR(bmi, na.rm = T),
+    mean_age = mean(age, na.rm = T),
+    sd_age = sd(age, na.rm = T),
+    iqr_age = IQR(age, na.rm = T)
+  )
+
+# print
+print(descr_stat)
+```
+
+```{r  BMI and Age (By Gender)}
+
+# Calculate descriptive statistics
+descr_stat_gender <- all %>%
+  group_by(gender) %>%
+  summarise(
+    mean_bmi = mean(bmi, na.rm = T),
+    sd_bmi = sd(bmi, na.rm = T),
+    iqr_bmi = IQR(bmi, na.rm = T),
+    mean_age = mean(age, na.rm = T),
+    sd_age = sd(age, na.rm = T),
+    iqr_age = IQR(age, na.rm = T)
+  )
+
+# print
+print(descr_stat_gender)
+
+```
+## Task 2: Hypothesis Testing
+
+H0: No difference in mean BMI between males and females.
+H1: There is difference in mean BMI between males and females.
+
+```{r T-test for Mean BMI Comparison by Gender}
+
+# Perform t-test to compare mean BMI between males and females
+ttest_result <- t.test(bmi ~ gender, data = all, na.rm = T)
+# Print the t-test result
+print(ttest_result)
+
+```
+We reject null hypothesis as p-value is < 0.05.
+
+
+
+# ANOVA
+
+H0: No difference in mean age across BMI categories.
+H1: There is difference in mean age across BMI categories.
+
+
+```{r ANOVA for Mean Age Across BMI Categories}
+# NOVA to compare mean age across BMI categories
+anova_result <- aov(age ~ bmi_category, data = all) 
+
+# Print the ANOVA result
+anova_summary <- summary(anova_result)
+
+# Perform adhoc if significant 
+
+# Extract p-value from ANOVA summary directly
+anova_p_value <- anova_summary[[1]]$`Pr(>F)`[1] # Extracting the p-value
+if (anova_p_value < 0.05) { 
+ post_hoc <- TukeyHSD(anova_result)
+ print(post_hoc)
+} else {
+ cat("ANOVA is not statistically significant; no need for post-hoc analysis.\n")
+}
+
+```
+
+P value is <0.05 across all categories. There is a statistical diffirence.
+
+
+# CHI
+
+H0: There is an association between BMI cateogry and BP diagnosis.
+H1: There is no association between BMI cateogry and BP diagnosis.
+
+
+```{r Chi for BMI and BP}
+# Contingency table for BMI category and blood pressure
+
+contg_tb <- table(all$bmi_category, all$told_had_bp)
+
+# Perform Chi-Square test
+chi_square_result <- chisq.test(contg_tb)
+
+# Print the Chi-Square test result
+print(contg_tb)
+```
+
+P value <0.05 so we reject the null hypothesis. There is an association between BMI cateogry and BP diagnosis.
+
+
+
+# Week 6 Tasks
+
+
+
+## Task 1: Basic Plot Creation
 
 
 ```{r Simple Scatter Plot}
@@ -202,7 +311,7 @@ ggplot(data = all %>% filter(age_category != "Under 18"),
 
 ```
 
-# Task 2: Applying Layers
+## Task 2: Applying Layers
 
 ```{r Facets}
 ggplot(data = all, aes(x = bmi, y = weight)) +
@@ -225,7 +334,7 @@ ggplot(data = all, aes(x = bmi, y = weight, color=gender)) +
  coord_cartesian(xlim = c(15, 40), ylim = c(40, 150))
 ```
 
-# Task 3: Customizing Themes and Labels
+## Task 3: Customizing Themes and Labels
 ```{r Themes}
 
 ggplot(data = all, aes(x = bmi, y = weight)) +
@@ -249,7 +358,7 @@ ggplot(data = all, aes(x = bmi, y = weight, color = gender)) +
  axis.title.y = element_text(size = 12)
  )
 ```
-# Task 4: Save Your Plots
+## Task 4: Save Your Plots
 
 ```{r}
 ggsave("../Output/bmi_weight_scatter.png", width = 8, height = 6, dpi = 300)

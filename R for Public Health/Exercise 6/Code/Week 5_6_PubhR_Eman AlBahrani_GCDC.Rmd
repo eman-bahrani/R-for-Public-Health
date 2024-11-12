@@ -1,0 +1,257 @@
+---
+title: "Weeks 5 and 6"
+output:
+  pdf_document: default
+---
+
+# Set Up
+
+```{r Packages}
+#Instal packages
+install.packages("tidyverse")
+install.packages("janitor")
+install.packages("haven")
+install.packages("dplyr")
+install.packages("labelled")
+
+#Load packages
+library(tidyverse)
+library(janitor)
+library(haven)
+library(dplyr)
+library(labelled)
+
+```
+
+# Read Data
+
+```{r Demo Data}
+
+# Read Demo data for 2015 - 2016 Cycle
+demo15_16 <- read_xpt("../Data/DEMO_I.XPT")%>%
+  clean_names()%>%
+  select(seqn, riagendr, ridageyr, ridreth1)  %>%
+  rename(gender=riagendr,
+         age = ridageyr,
+         race = ridreth1) %>%
+  mutate(race = factor(race, levels = c(1:5), 
+                       labels = c("mexican american", "other hispanic", 
+                                  "non-hispanic white","non-hispanic black",
+                                  "other race - including multi-racial")))  %>% 
+  mutate(gender=factor(gender, levels = c(1, 2), labels = c("male", "female")))  %>%
+  set_variable_labels(gender='Gender',
+                      race='Race/Hispanic origin')
+
+# Read Demo data for 2017 - 2018 Cycle
+demo17_18 <- read_xpt("../Data/DEMO_I.XPT") %>%
+  clean_names() %>%
+  select(seqn, riagendr, ridageyr, ridreth1)%>%
+  rename(gender=riagendr,
+         age = ridageyr,
+         race = ridreth1) %>%
+  mutate(race = factor(race, levels = c(1:5), 
+                       labels = c("mexican american", "other hispanic", 
+                                  "non-hispanic white","non-hispanic black",
+                                  "other race - including multi-racial"))) %>% 
+  mutate(gender=factor(gender, levels = c(1, 2), labels = c("male", "female"))) %>%
+  set_variable_labels(gender='Gender',
+                      race='Race/Hispanic origin')
+
+
+# Combine Demo
+demo_all <- union(demo15_16, demo17_18)
+
+```
+
+
+```{r BP}
+
+# Read BP data for 2015 - 2016 Cycle
+bpc15_16 <- read_xpt("../Data/BPQ_I.XPT")%>% 
+  clean_names()%>%
+  select(seqn, bpq020)%>%
+  rename(told_had_bp=bpq020)%>% 
+  mutate(told_had_bp=factor(told_had_bp, levels = c(1, 2), 
+                            labels = c("yes", "no"))) %>%
+  set_variable_labels(told_had_bp='Ever told you had high blood pressure')
+
+# Read BP data for 2017 - 2018 Cycle
+
+bpc17_18 <- read_xpt("../Data/BPQ_J.XPT")%>% 
+  clean_names()%>%
+  select(seqn, bpq020)%>%
+  rename(told_had_bp=bpq020)%>% 
+  mutate(told_had_bp=factor(told_had_bp, levels = c(1, 2), 
+                            labels = c("yes", "no")))%>%
+  set_variable_labels(told_had_bp='Ever told you had high blood pressure')
+
+# Combine BP data 
+
+bpc_all <- union(bpc15_16, bpc17_18)
+
+```
+
+```{r BMI }
+
+# Read BMI data for 2015 - 2016 Cycle
+
+bmi15_16 <- read_xpt("../Data/BMX_I.XPT") %>%
+  clean_names()%>%
+  select(seqn, bmxwt, bmxht) %>%
+  rename(weight = bmxwt,
+         height = bmxht) %>%
+  mutate(bmi=weight/(height/100)^2)   %>% 
+  mutate(bmi_category = case_when(
+    bmi < 18.5 ~ "underweight",
+    bmi >= 18.5 & bmi < 24.9 ~ "normal weight",
+    bmi >= 25 & bmi < 29.9 ~ "overweight",
+    bmi >= 30 ~ "obese"
+  ))  %>%
+  set_variable_labels(bmi='Body mass index',
+                      bmi_category='Categorical body mass index')
+
+
+# Read BMI data for 2017 - 2018 Cycle
+bmi17_18 <- read_xpt("../Data/BMX_J.XPT")  %>%
+  clean_names() %>%
+  select(seqn, bmxwt, bmxht) %>%
+  rename(weight = bmxwt,
+         height = bmxht)  %>%
+  mutate(bmi=weight/(height/100)^2)  %>% 
+  mutate(bmi_category = case_when(
+    bmi < 18.5 ~ "underweight",
+    bmi >= 18.5 & bmi < 24.9 ~ "normal weight",
+    bmi >= 25 & bmi < 29.9 ~ "overweight",
+    bmi >= 30 ~ "obese"
+  )) %>%
+  set_variable_labels(bmi='Body mass index',
+                      bmi_category='Categorical body mass index')
+
+
+# Combine BMI data
+bmi_all <- union(bmi15_16, bmi17_18)
+
+```
+
+
+```{r Combine All}
+# Combine all data
+all <- demo_all %>%
+  left_join(bpc_all, by = "seqn") %>%
+  left_join(bmi_all, by = "seqn")
+```
+
+
+# Task 1: Basic Plot Creation
+
+
+```{r Simple Scatter Plot}
+ggplot(data = all, aes(x = bmi, y = weight)) +
+ geom_point()
+
+```
+
+
+```{r Customised Scatter Plot}
+ggplot(data = all, aes(x = bmi, y = weight, colour = age)) +
+  geom_point(size = 3, shape = 16, alpha = 0.8) +
+  scale_colour_gradient(low = "skyblue", high = "darkblue") +
+  labs(title = "BMI vs Weight",
+       subtitle = "Coloured by Age",
+       x = "Body Mass Index (BMI)",
+       y = "Weight (kg)",
+       colour = "Age") +
+  theme_minimal(base_size = 15) +
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"),
+        plot.subtitle = element_text(hjust = 0.5),
+        axis.title = element_text(face = "bold"))
+```
+
+```{r Categorising age}
+
+all <- all %>%
+  mutate(age_category = case_when(
+    age < 18 ~ "Under 18",
+    age >= 18 & age < 30 ~ "18-29",
+    age >= 30 & age < 45 ~ "30-44",
+    age >= 45 & age < 60 ~ "45-59",
+    age >= 60 ~ "60+"
+  ))
+```
+
+
+```{r Simple Bar chart}
+ggplot(data = all %>% filter(age_category != "Under 18"), aes(x =
+age_category, fill = told_had_bp)) +
+ geom_bar(position = "dodge")
+
+```
+
+
+```{r Cleaned Bar Chart}
+ggplot(data = all %>% filter(age_category != "Under 18"),
+       aes(x = age_category, fill = told_had_bp)) +
+  geom_bar(position = "dodge") +
+  labs(title = "Hypertension Status by Age Category",
+       x = "Age Category",
+       y = "Number of Individuals",
+       fill = "Hypertension Status") +
+  theme_minimal(base_size = 15) +
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"),
+        axis.title = element_text(face = "bold"))
+
+```
+
+# Task 2: Applying Layers
+
+```{r Facets}
+ggplot(data = all, aes(x = bmi, y = weight)) +
+ geom_point() +
+ facet_grid(gender ~ told_had_bp)
+
+```
+
+```{r Stat Transformation}
+ggplot(data = all, aes(x = bmi, y = weight, color = gender)) +
+ geom_point() +
+ stat_smooth(method = "lm", se = TRUE) +
+ theme_minimal()
+
+```
+
+```{r Coordinate Systems}
+ggplot(data = all, aes(x = bmi, y = weight, color=gender)) +
+ geom_point() +
+ coord_cartesian(xlim = c(15, 40), ylim = c(40, 150))
+```
+
+# Task 3: Customizing Themes and Labels
+```{r Themes}
+
+ggplot(data = all, aes(x = bmi, y = weight)) +
+ geom_point() +
+ theme_classic()
+
+```
+
+```{r Labels}
+ggplot(data = all, aes(x = bmi, y = weight, color = gender)) +
+ geom_point() +
+ labs(
+ title = "Relationship Between BMI and Weight",
+ x = "BMI",
+ y = "Weight (kg)",
+ color = "Gender"
+ ) +
+ theme(
+ plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
+ axis.title.x = element_text(size = 12),
+ axis.title.y = element_text(size = 12)
+ )
+```
+# Task 4: Save Your Plots
+
+```{r}
+ggsave("../Output/bmi_weight_scatter.png", width = 8, height = 6, dpi = 300)
+
+```

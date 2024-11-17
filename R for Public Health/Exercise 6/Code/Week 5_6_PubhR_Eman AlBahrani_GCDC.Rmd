@@ -140,6 +140,13 @@ all <- demo_all %>%
   left_join(bmi_all, by = "seqn")
 ```
 
+
+```{r Save Data}
+saveRDS(all, "../Data/all_data.rds")
+
+```
+
+
 # Week 5 Tasks
 
 ## Task 1: Descriptive Statistics

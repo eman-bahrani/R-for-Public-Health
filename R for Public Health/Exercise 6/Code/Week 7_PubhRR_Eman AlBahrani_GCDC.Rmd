@@ -1,0 +1,135 @@
+---
+title: "Week 7 R Exercise"
+output: pdf_document
+date: "2024-11-14"
+---
+
+# Read Data
+
+```{r}
+all <- readRDS("../Data/all_data.rds")
+
+```
+
+```{r Smoking Data}
+# Read SMQ data for 2015 - 2016 Cycle
+smq15_16 <- read_xpt("../Data/SMQ_I.XPT") %>%
+  clean_names() %>%
+  select(seqn, smq_var) %>% # replace `smq_var` with the actual variable name
+  mutate(smq_var = factor(smq_var, levels = c(1, 2), labels = c("yes", "no"))) %>%
+  set_variable_labels(smq_var = 'Label for SMQ variable')
+
+# Read SMQ data for 2017 - 2018 Cycle
+smq17_18 <- read_xpt("../Data/SMQ_J.XPT") %>%
+  clean_names() %>%
+  select(seqn, smq_var) %>%
+  mutate(smq_var = factor(smq_var, levels = c(1, 2), labels = c("yes", "no"))) %>%
+  set_variable_labels(smq_var = 'Label for SMQ variable')
+
+# Combine SMQ data
+smq_all <- union(smq15_16, smq17_18)
+
+```
+
+
+```{r Alcohol Data}
+
+# Read TCHOL data for 2015 - 2016 Cycle
+tchol15_16 <- read_xpt("../Data/TCHOL_I.XPT") %>%
+  clean_names() %>%
+  select(seqn, tchol_var) %>% # replace `tchol_var` with the actual variable name
+  set_variable_labels(tchol_var = 'Label for TCHOL variable')
+
+# Read TCHOL data for 2017 - 2018 Cycle
+tchol17_18 <- read_xpt("../Data/TCHOL_J.XPT") %>%
+  clean_names() %>%
+  select(seqn, tchol_var) %>%
+  set_variable_labels(tchol_var = 'Label for TCHOL variable')
+
+# Combine TCHOL data
+tchol_all <- union(tchol15_16, tchol17_18)
+```
+
+
+```{r}
+# Combine all data into `all`
+all <- demo_all %>%
+  left_join(bpc_all, by = "seqn") %>%
+  left_join(bmi_all, by = "seqn") %>%
+  left_join(smq_all, by = "seqn") %>%
+  left_join(tchol_all, by = "seqn")
+```
+
+```{r}
+saveRDS(all_SMQ_TCHOL, "../Data/all_data.rds")
+
+```
+
+
+
+```{r}
+library(ggplot2, tidyverse, dplyr, haven, janitor)
+```
+
+## Task 1: Plot Customization with ggplot2
+
+
+```{r Scatter Plot with Trend Lines}
+ggplot(data = all, aes(x = bmi, y = weight)) +
+ geom_point(aes(color = gender), alpha = 0.1 ,size = 3) +
+  stat_smooth(aes(color = gender), method = "lm", se = FALSE) +
+ scale_color_manual(
+ values = c("male" = "#377eb8", "female" = "#e41a1c"), 
+ labels = c("Male", "Female") 
+ ) +
+ labs(x = "BMI", y = "Weight", color = "Gender") +
+ theme_minimal() +
+ theme(
+ legend.position = "top",
+ legend.title = element_text(size = 12, face = "bold"),
+ legend.text = element_text(size = 10),
+ axis.title.x = element_text(size = 14, face = "bold"),
+ axis.title.y = element_text(size = 14, face = "bold"),
+ axis.text = element_text(size = 12, face = "italic")
+ )
+```
+
+```{r Stacked Bar Chart for Smoking Status by Age Category}
+
+all_filtered <- all %>%
+ filter(!is.na(smoking) & age_cat != "Under 18") %>%
+ group_by(age_cat, smoking) %>%
+ summarise(count = n()) %>%
+ group_by(age_cat) %>%
+ mutate(proportion = count / sum(count))
+
+smoking_colors <- c("Current" = "orange", 
+ "Former" = "green", 
+"Never" = "blue") 
+
+all_filtered$smoking <- factor(all_filtered$smoking, levels = 
+c("current", "former", "never"), labels = c("Current", "Former", 
+"Never"))
+# Create the plot
+ggplot(data = all_filtered, aes(x = age_cat, y = proportion, fill = 
+smoking)) +
+ geom_bar(stat = "identity", position = position_dodge(width = 
+0.8), color = "black") +
+ geom_text(aes(label = count), 
+ position = position_dodge(width = 0.8), 
+ vjust = 1.5, 
+ color = "white",
+ size = 3) + 
+ scale_fill_manual(values = smoking_colors) + 
+ labs(x = "Age Category", 
+ y = "Prevalence", 
+ fill = "Smoking Status",
+ caption = "Note: The numbers above each bar represent the 
+sample size.") + 
+ scale_y_continuous(labels = scales::percent) + 
+ theme_minimal() +
+ theme(
+ plot.caption = element_text(hjust = 0) 
+ )
+```
+

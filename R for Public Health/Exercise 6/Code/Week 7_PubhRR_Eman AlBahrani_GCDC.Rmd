@@ -4,6 +4,14 @@ output: pdf_document
 date: "2024-11-14"
 ---
 
+
+
+# Load Libraries
+
+```{r}
+library(ggplot2, tidyverse, dplyr, haven, janitor)
+```
+
 # Read Data
 
 ```{r}
@@ -12,63 +20,103 @@ all <- readRDS("../Data/all_data.rds")
 ```
 
 ```{r Smoking Data}
-# Read SMQ data for 2015 - 2016 Cycle
-smq15_16 <- read_xpt("../Data/SMQ_I.XPT") %>%
+# Read Smoking data for 2015 - 2016 Cycle
+smoking15_16 <- read_xpt("../Data/SMQ_I.XPT") %>%
   clean_names() %>%
-  select(seqn, smq_var) %>% # replace `smq_var` with the actual variable name
-  mutate(smq_var = factor(smq_var, levels = c(1, 2), labels = c("yes", "no"))) %>%
-  set_variable_labels(smq_var = 'Label for SMQ variable')
+  select(seqn, smq020, smq040) %>%
+  rename(ever_smoked = smq020,
+         currently_smoking = smq040) %>%
+  mutate(smoking_status = case_when(
+    ever_smoked == 1 & (currently_smoking == 1 | currently_smoking == 2) ~ "current",
+    ever_smoked == 1 & currently_smoking == 3 ~ "former",
+    ever_smoked == 2 ~ "never",
+    TRUE ~ NA_character_
+  )) %>%
+  set_variable_labels(
+    smoking_status = 'Smoking Status',
+    ever_smoked = 'Ever smoked at least 100 cigarettes',
+    currently_smoking = 'Current smoking frequency'
+  )
 
-# Read SMQ data for 2017 - 2018 Cycle
-smq17_18 <- read_xpt("../Data/SMQ_J.XPT") %>%
+# Read Smoking data for 2017 - 2018 Cycle
+smoking17_18 <- read_xpt("../Data/SMQ_J.XPT") %>%
   clean_names() %>%
-  select(seqn, smq_var) %>%
-  mutate(smq_var = factor(smq_var, levels = c(1, 2), labels = c("yes", "no"))) %>%
-  set_variable_labels(smq_var = 'Label for SMQ variable')
+  select(seqn, smq020, smq040) %>%
+  rename(ever_smoked = smq020,
+         currently_smoking = smq040) %>%
+  mutate(smoking_status = case_when(
+    ever_smoked == 1 & (currently_smoking == 1 | currently_smoking == 2) ~ "current",
+    ever_smoked == 1 & currently_smoking == 3 ~ "former",
+    ever_smoked == 2 ~ "never",
+    TRUE ~ NA_character_
+  )) %>%
+  set_variable_labels(
+    smoking_status = 'Smoking Status',
+    ever_smoked = 'Ever smoked at least 100 cigarettes',
+    currently_smoking = 'Current smoking frequency'
+  )
 
-# Combine SMQ data
-smq_all <- union(smq15_16, smq17_18)
+# Combine Smoking Data
+smoking_all <- union(smoking15_16, smoking17_18)
+
 
 ```
 
 
-```{r Alcohol Data}
+```{r Cholestrol Data}
 
-# Read TCHOL data for 2015 - 2016 Cycle
-tchol15_16 <- read_xpt("../Data/TCHOL_I.XPT") %>%
+# Read Cholesterol data for 2015 - 2016 Cycle
+cholesterol15_16 <- read_xpt("../Data/TCHOL_I.XPT") %>%
   clean_names() %>%
-  select(seqn, tchol_var) %>% # replace `tchol_var` with the actual variable name
-  set_variable_labels(tchol_var = 'Label for TCHOL variable')
+  select(seqn, lbxtc) %>%
+  rename(chol = lbxtc) %>%
+  mutate(chol_category = case_when(
+    chol < 200 ~ "desirable",
+    chol >= 200 & chol <= 239 ~ "borderline",
+    chol >= 240 ~ "high",
+    TRUE ~ NA_character_
+  )) %>%
+  set_variable_labels(
+    chol = 'Total Cholesterol (mg/dL)',
+    chol_category = 'Cholesterol Category'
+  )
 
-# Read TCHOL data for 2017 - 2018 Cycle
-tchol17_18 <- read_xpt("../Data/TCHOL_J.XPT") %>%
+# Read Cholesterol data for 2017 - 2018 Cycle
+cholesterol17_18 <- read_xpt("../Data/TCHOL_J.XPT") %>%
   clean_names() %>%
-  select(seqn, tchol_var) %>%
-  set_variable_labels(tchol_var = 'Label for TCHOL variable')
+  select(seqn, lbxtc) %>%
+  rename(chol = lbxtc) %>%
+  mutate(chol_category = case_when(
+    chol < 200 ~ "desirable",
+    chol >= 200 & chol <= 239 ~ "borderline",
+    chol >= 240 ~ "high",
+    TRUE ~ NA_character_
+  )) %>%
+  set_variable_labels(
+    chol = 'Total Cholesterol (mg/dL)',
+    chol_category = 'Cholesterol Category'
+  )
 
-# Combine TCHOL data
-tchol_all <- union(tchol15_16, tchol17_18)
+# Combine Cholesterol Data
+cholesterol_all <- union(cholesterol15_16, cholesterol17_18)
+
 ```
 
 
 ```{r}
 # Combine all data into `all`
-all <- demo_all %>%
-  left_join(bpc_all, by = "seqn") %>%
-  left_join(bmi_all, by = "seqn") %>%
-  left_join(smq_all, by = "seqn") %>%
-  left_join(tchol_all, by = "seqn")
-```
+all <- all %>%
+  left_join(smoking_all, by = "seqn") %>%
+  left_join(cholesterol_all, by = "seqn")
 
-```{r}
-saveRDS(all_SMQ_TCHOL, "../Data/all_data.rds")
+# Save the updated dataset
+saveRDS(all, "../Data/all_data_updated.rds")
 
 ```
 
-
-
 ```{r}
-library(ggplot2, tidyverse, dplyr, haven, janitor)
+all <- readRDS("../Data/all_data_updated.rds")
+
 ```
 
 ## Task 1: Plot Customization with ggplot2
@@ -97,22 +145,22 @@ ggplot(data = all, aes(x = bmi, y = weight)) +
 ```{r Stacked Bar Chart for Smoking Status by Age Category}
 
 all_filtered <- all %>%
- filter(!is.na(smoking) & age_cat != "Under 18") %>%
- group_by(age_cat, smoking) %>%
+ filter(!is.na(smoking_status) & age_category != "Under 18") %>%
+ group_by(age_category, smoking_status) %>%
  summarise(count = n()) %>%
- group_by(age_cat) %>%
+ group_by(age_category) %>%
  mutate(proportion = count / sum(count))
 
-smoking_colors <- c("Current" = "orange", 
- "Former" = "green", 
-"Never" = "blue") 
+smoking_colors <- c("Current" = "red", 
+ "Former" = "darkgreen", 
+"Never" = "darkblue") 
 
-all_filtered$smoking <- factor(all_filtered$smoking, levels = 
+all_filtered$smoking_status <- factor(all_filtered$smoking_status, levels = 
 c("current", "former", "never"), labels = c("Current", "Former", 
 "Never"))
 # Create the plot
-ggplot(data = all_filtered, aes(x = age_cat, y = proportion, fill = 
-smoking)) +
+ggplot(data = all_filtered, aes(x = age_category, y = proportion, fill = 
+smoking_status)) +
  geom_bar(stat = "identity", position = position_dodge(width = 
 0.8), color = "black") +
  geom_text(aes(label = count), 
@@ -131,5 +179,111 @@ sample size.") +
  theme(
  plot.caption = element_text(hjust = 0) 
  )
+```
+
+## Task 2: Advanced Layering Techniques
+
+```{r Faceted Plot for BMI and BP}
+# Define custom colors for `told_had_bp`
+bp_colors <- c("yes" = "purple", 
+ "no" = "cyan") 
+smoking_labels <- c("current" = "Current Smokers", 
+ "former" = "Former Smokers", 
+"never" = "Never Smokers")
+# Plot with custom colors and facet labels
+ggplot(data = all %>% filter(!is.na(bmi), !is.na(smoking_status), 
+!is.na(told_had_bp)), 
+ aes(y = bmi, x = told_had_bp, fill = told_had_bp)) +
+ geom_boxplot() +
+ facet_grid(gender ~ smoking_status, labeller = labeller(smoking = 
+smoking_labels)) + # Apply custom facet labels
+ scale_fill_manual(values = bp_colors) + # Apply custom colors
+ theme_bw() +
+ labs(x = "Told Had Blood Pressure", y = "BMI", fill = "Blood 
+Pressure Status")
+```
+
+```{r Violin and Box Plot for Cholesterol by BMI Category}
+
+# Reorder and filter data
+all_filtered <- all %>%
+ filter(!is.na(bmi_category)) %>% 
+ mutate(bmi_category = factor(bmi_category, levels = c("underweight", 
+"normal weight", "overweight", "obese")))
+bmi_cat_labels <- c("Underweight", "Normal", "Overweight", "Obese")
+# Plot with annotations to simulate secondary y-axis
+ggplot(data = all_filtered, aes(y = bmi_category, x = chol, fill = 
+bmi_category)) +
+ geom_jitter(width = 0.2, alpha = 0.05) +
+ geom_violin(trim = FALSE, alpha = 0.5) +
+ geom_boxplot(width = 0.2, outlier.shape = NA) +
+ labs(x = "Cholesterol", y = "BMI Category") +
+ theme_minimal() +
+ theme(
+ legend.position = "none", # Remove legend
+ panel.grid.major.y = element_blank(), 
+ axis.text.y = element_text(face = "bold"), 
+ axis.title.y = element_text(face = "bold")
+ ) +
+ scale_y_discrete(
+ labels = bmi_cat_labels,
+ name = "BMI Category"
+ )
+
+```
+
+
+## Task 3: Customizing Themes and Labels
+
+
+```{r Bar chart data labels}
+race_colors <- c(
+ "non-hispanic white" = "grey", 
+ "non-hispanic black" = "brown", 
+ "mexican american" = "seagreen", 
+ "other hispanic" = "yellow", 
+ "other race - including multi-racial" = "pink" 
+)
+ggplot(data = all, aes(y = fct_infreq(race), fill = race)) +
+ geom_bar() +
+ geom_label(stat = "count", aes(label = ..count..), hjust = +1.3, 
+fill="white") +
+ scale_fill_manual(values = race_colors) +
+ labs(x = "Count", y = NULL) +
+ theme_minimal()
+```
+
+
+## Task 4: Coordinate Adjustments and Saving Plots
+
+
+```{r}
+# Reorder bmi_cat levels
+all <- all %>%
+ filter(!is.na(bmi_category), !is.na(told_had_bp)) %>%
+ mutate(bmi_category = factor(bmi_category, levels = c("underweight", 
+"normal weight", "overweight", "obese"))) 
+
+# Plot
+ggplot(data = all, aes(x = bmi, y = weight, color = bmi_category)) +
+ geom_point(alpha=0.4) +
+ coord_cartesian(xlim = c(15, 40), ylim = c(40, 150)) +
+ labs(title = "BMI vs. Weight Colored by High Blood Pressure 
+Status",
+ x = "BMI (kg/m2)",
+ y = "Weight (kg)",
+ color = "High Blood Pressure") +
+ theme_minimal()
+
+```
+
+
+
+# Saving
+
+
+```{r}
+ggsave("final_plot.png", width = 8, height = 6, dpi = 300)
+
 ```
 

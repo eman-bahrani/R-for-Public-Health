@@ -1,6 +1,9 @@
 ---
 title: "Week 7 R Exercise"
-output: pdf_document
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
 date: "2024-11-14"
 ---
 
@@ -9,8 +12,15 @@ date: "2024-11-14"
 # Load Libraries
 
 ```{r}
-library(ggplot2, tidyverse, dplyr, haven, janitor)
+library(tidyverse)
+library(janitor)
+library(haven)
+library(dplyr)
+library(labelled)
+library(ggplot2)
+
 ```
+
 
 # Read Data
 
@@ -114,6 +124,8 @@ saveRDS(all, "../Data/all_data_updated.rds")
 
 ```
 
+
+
 ```{r}
 all <- readRDS("../Data/all_data_updated.rds")
 
@@ -127,7 +139,7 @@ ggplot(data = all, aes(x = bmi, y = weight)) +
  geom_point(aes(color = gender), alpha = 0.1 ,size = 3) +
   stat_smooth(aes(color = gender), method = "lm", se = FALSE) +
  scale_color_manual(
- values = c("male" = "#377eb8", "female" = "#e41a1c"), 
+ values = c("male" = "lightblue", "female" = "orange"), 
  labels = c("Male", "Female") 
  ) +
  labs(x = "BMI", y = "Weight", color = "Gender") +
@@ -143,6 +155,15 @@ ggplot(data = all, aes(x = bmi, y = weight)) +
 ```
 
 ```{r Stacked Bar Chart for Smoking Status by Age Category}
+all <- all %>%
+  mutate(age_category = case_when(
+    age < 18 ~ "Under 18",
+    age >= 18 & age < 30 ~ "18-29",
+    age >= 30 & age < 45 ~ "30-44",
+    age >= 45 & age < 60 ~ "45-59",
+    age >= 60 ~ "60+"
+  ))
+
 
 all_filtered <- all %>%
  filter(!is.na(smoking_status) & age_category != "Under 18") %>%
@@ -152,8 +173,8 @@ all_filtered <- all %>%
  mutate(proportion = count / sum(count))
 
 smoking_colors <- c("Current" = "red", 
- "Former" = "darkgreen", 
-"Never" = "darkblue") 
+ "Former" = "salmon", 
+"Never" = "pink") 
 
 all_filtered$smoking_status <- factor(all_filtered$smoking_status, levels = 
 c("current", "former", "never"), labels = c("Current", "Former", 
@@ -185,7 +206,7 @@ sample size.") +
 
 ```{r Faceted Plot for BMI and BP}
 # Define custom colors for `told_had_bp`
-bp_colors <- c("yes" = "purple", 
+bp_colors <- c("yes" = "magenta", 
  "no" = "cyan") 
 smoking_labels <- c("current" = "Current Smokers", 
  "former" = "Former Smokers", 
@@ -220,7 +241,7 @@ bmi_category)) +
  labs(x = "Cholesterol", y = "BMI Category") +
  theme_minimal() +
  theme(
- legend.position = "none", # Remove legend
+ legend.position = "none", 
  panel.grid.major.y = element_blank(), 
  axis.text.y = element_text(face = "bold"), 
  axis.title.y = element_text(face = "bold")
@@ -283,7 +304,7 @@ Status",
 
 
 ```{r}
-ggsave("final_plot.png", width = 8, height = 6, dpi = 300)
+ggsave("../Output/final_plot.png", width = 8, height = 6, dpi = 300)
 
 ```
 

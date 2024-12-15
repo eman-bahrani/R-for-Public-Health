@@ -1,0 +1,203 @@
+---
+title: "Week 10 R Exercise"
+output:
+  pdf_document: default
+  html_notebook: default
+---
+
+
+
+## Load Libraries
+
+```{r}
+library(tidyverse)
+library(janitor)
+library(haven)
+library(dplyr)
+library(labelled)
+library(ggplot2)
+
+```
+
+## Read Data
+
+```{r}
+all <- readRDS("../Data/all_data_updated.rds")
+
+```
+
+# Task 1: Building a Simple Logistic Regression Model
+
+```{r}
+# Filter out "Under 18" age group 
+filtered_data <- all %>% filter(age_category != "Under 18") 
+
+ 
+
+# Ensure age_cat is a factor without unused levels 
+# Convert to factor
+filtered_data$age_category <- factor(filtered_data$age_category) 
+filtered_data$age_category <- droplevels(filtered_data$age_category) 
+
+# Create a binary variable for smoking status
+filtered_data <- filtered_data %>%
+  mutate(smoking01 = ifelse(smoking_status == "current", 1, 0))
+
+# Fit the logistic regression model 
+model <- glm(smoking01 ~ age_category, data = filtered_data, family = "binomial") 
+
+ 
+
+# Print model summary 
+summary(model) 
+```
+### Intercept (-1.58605):
+The intercept represents the log-odds of being a current smoker for the reference age group (18-29 years).
+
+Odds of smoking for 18-29 group=exp(−1.58605)≈0.204
+This means that the odds of being a current smoker in the 18-29 age group are approximately 0.2 to 1 (i.e., about 20%)
+
+
+### Age Category Effects:
+The coefficients for the age_category variable represent the difference in log-odds of being a current smoker compared to the reference group (18-29).
+
+#### Age Group 30-44 (0.31093):
+The log-odds of being a current smoker are higher by 0.31 compared to the 18-29 group.
+Converting to odds ratio: exp(0.31093)≈1.364
+This means the odds of being a current smoker are about 36% higher in the 30-44 age group compared to the 18-29 group.
+p=0.002: Statistically significant increase in odds of smoking compared to the 18-29 group.
+
+#### Age Group 45-59 (0.34207):
+The log-odds of being a current smoker are higher by 0.34 compared to the 18-29 group.
+Odds ratio:exp(0.34207)≈1.408
+The odds of being a current smoker are about 41% higher in the 45-59 group compared to the 18-29 group.
+p=0.0008: Statistically significant increase in odds of smoking compared to the 18-29 group.
+
+#### Age Group 60+ (-0.21783):
+The log-odds of being a current smoker are lower by 0.22 compared to the 18-29 group.
+Odds ratio:exp(−0.21783)≈0.804
+This means the odds of being a current smoker are about 20% lower in the 60+ group compared to the 18-29 group.
+p=0.036: Statistically significant decrease in odds of smoking compared to the 18-29 group.
+
+
+```{r Visualising the relationship}
+# Predict probabilities for each age category
+predicted_probs <- filtered_data %>%
+  group_by(age_category) %>%
+  summarize(
+    smoking_rate = mean(smoking01, na.rm = TRUE)
+  )
+
+# Plot the smoking rates by age category
+ggplot(predicted_probs, aes(x = age_category, y = smoking_rate)) +
+  geom_bar(stat = "identity", fill = "skyblue", color = "black") +
+  geom_text(aes(label = scales::percent(smoking_rate, accuracy = 0.1)), 
+            vjust = -0.5, size = 4) +
+  labs(
+    title = "Smoking Rates by Age Category",
+    x = "Age Category",
+    y = "Smoking Rate (Proportion)"
+  ) +
+  scale_y_continuous(labels = scales::percent_format()) +
+  theme_minimal()
+```
+
+
+
+# Task 2: Calculating and Interpreting Odds Ratios with Confidence Intervals 
+
+```{r}
+# Calculate odds ratios and 95% confidence intervals 
+odds_ratios <- exp(coef(model)) 
+
+conf_int <- exp(confint(model)) 
+
+ 
+
+# Create a table for reporting 
+results <- data.frame( 
+  Odds_Ratio = odds_ratios, 
+  CI_Lower = conf_int[, 1], 
+  CI_Upper = conf_int[, 2] 
+) 
+
+
+print(results) 
+```
+
+Intercept:
+The confidence interval does not include 1, indicating statistical significance.
+
+Age Group 30-44:
+The confidence interval does not include 1, so the result is statistically significant.
+
+Age Group 45-59:
+The confidence interval does not include 1, so this result is statistically significant.
+
+Age Group 60+:
+The confidence interval does not include 1, so this result is statistically significant.
+
+# Task 3: Creating a Table of Log-Odds, Odds, and Probabilities 
+
+```{r}
+# Extract model coefficients 
+intercept <- coef(model)[1]  # Intercept term 
+coefficients <- coef(model)[-1]  # Coefficients for age categories 
+
+ 
+
+# Calculate log-odds, odds, and probabilities for each age category 
+log_odds <- c(intercept, intercept + coefficients)  # Log-odds for each age category 
+
+odds <- exp(log_odds)  # Convert log-odds to odds 
+
+probabilities <- odds / (1 + odds)  # Convert odds to probabilities 
+
+ 
+
+# Create a data frame with age category names and calculated values 
+
+results <- data.frame( 
+  Log_Odds = log_odds, 
+  Odds = odds, 
+  Probability = probabilities 
+) 
+
+ 
+print(results) 
+```
+
+# Task 4: Adding a Categorical Predictor 
+
+```{r}
+# Fit a logistic regression model with a categorical predictor 
+model_gender <- glm(smoking01 ~ age_category + gender, data = filtered_data, family = "binomial") 
+
+ 
+
+# Print model summary 
+summary(model_gender) 
+
+ 
+
+# Calculate odds ratios and 95% confidence intervals 
+odds_ratios_gender <- exp(coef(model_gender)) 
+conf_int_gender <- exp(confint(model_gender)) 
+
+ 
+
+# Create a table for reporting 
+results_gender <- data.frame( 
+  Odds_Ratio = odds_ratios_gender, 
+  CI_Lower = conf_int_gender[, 1], 
+  CI_Upper = conf_int_gender[, 2] 
+) 
+
+
+print(results_gender) 
+```
+
+Compared to the reference category (males aged 18-29):
+Males aged 30-44 and 45-59 are 38% and 41.3% more likely to smoke, respectively.
+Males aged 60+ are 20.4% less likely to smoke compared to the reference group.
+Females are 44% less likely to smoke compared to males in the same age category.

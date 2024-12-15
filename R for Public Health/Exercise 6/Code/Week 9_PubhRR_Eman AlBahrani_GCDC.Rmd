@@ -1,0 +1,166 @@
+---
+title: "Week 9 R Exercise"
+output:
+  html_document:
+    df_print: paged
+  html_notebook: default
+  pdf_document: default
+---
+
+
+## Load Libraries
+
+```{r}
+library(tidyverse)
+library(janitor)
+library(haven)
+library(dplyr)
+library(labelled)
+library(ggplot2)
+
+```
+
+
+## Read Data
+
+```{r}
+all <- readRDS("../Data/all_data_updated.rds")
+
+```
+
+
+
+# Task 1: Building a Simple Linear Regression Model 
+
+```{r Fir LinReg Model}
+
+model <- lm(chol ~ bmi, data = all) 
+
+ 
+
+# Print summary 
+
+summary(model) 
+```
+Coefficients =  for each unit increase in BMI, cholestrol level rises by 0.22 mg/DL on average (slope) , expected cholestrol level when BMI=0 is 180.70272 (intercept) 
+
+R^2 value = 0.001481 = only 0.14% of of the variability in cholestrol levels is due to BMI, i.e. weak relationship
+
+Significance of BMI as a predictor =  0.0041 i.e. statistically significant
+
+
+
+# Task 2: Visualizing the Regression Line 
+
+```{r}
+# Scatter plot with regression line 
+
+ggplot(all, aes(x = bmi, y = chol)) + 
+
+  geom_point(color = "red", alpha = 0.5) + 
+
+  geom_smooth(method = "lm", se = TRUE, color = "blue") + 
+
+  labs( 
+
+    title = "Linear Regression: Cholesterol vs. BMI", 
+
+    x = "BMI (kg/m²)", 
+
+    y = "Cholesterol (mg/dL)" 
+
+  ) + 
+
+  theme_minimal() 
+```
+
+# Task 3: Checking Assumptions 
+
+```{r}
+# Diagnostic plots 
+
+par(mfrow = c(2, 2))  # Display 4 plots on one screen 
+
+plot(model) 
+```
+
+Deviation is noticed in the Q-Q Plot, therefore this is not normally distributed.
+
+The Residuals vs Fitted Plot shows a pattern, indicating nonlinearity. 
+
+The variance of the residuals in Residuals vs. Fitted Plot and Scale-Location Plot indicates heteroscedasticity. 
+
+
+
+# Task 4: Incorporating a Categorical Predictor 
+
+
+```{r}
+# Filter data to remove NA values 
+all_filtered <- all %>% filter(!is.na(bmi), !is.na(chol), !is.na(smoking_status)) 
+
+ 
+
+# Ensure smoking is treated as a factor 
+all_filtered$smoking <- as.factor(all_filtered$smoking_status) 
+
+ 
+
+# Fit a multiple linear regression model 
+smoking_model <- lm(chol ~ bmi + age + smoking_status, data = all_filtered) 
+
+ 
+
+# Print model summary 
+summary(smoking_model) 
+
+ 
+```
+## Interpretation of Coefficients
+
+Intercept (176.32):
+This is the predicted cholesterol level for a reference individual who has a BMI of 0, is aged 0, and is in the "current smoker" category (the reference level for smoking_status). While not realistic as age and BMI cannot be 0, it serves as a baseline for comparison.
+
+BMI (0.04604):
+For each 1-unit increase in BMI, cholesterol increases by 0.046 mg/dL on average, controlling for age and smoking status.
+However, this is not statistically significant (p=0.566p=0.566), indicating weak evidence of a relationship between BMI and cholesterol in this dataset.
+
+
+Age (0.27044):
+For each 1-year increase in age, cholesterol increases by 0.27 mg/dL on average, controlling for BMI and smoking status.
+This relationship is statistically significant (p<0.001), suggesting a strong and positive association between age and cholesterol levels.
+
+Smoking Status:
+"Former Smokers" (-1.57):
+Former smokers have, on average, 1.57 mg/dL lower cholesterol compared to current smokers, controlling for BMI and age. However, this difference is not statistically significant (p=0.392).
+
+"Never Smokers" (-1.98):
+Never smokers have, on average, 1.98 mg/dL lower cholesterol compared to current smokers, controlling for BMI and age. Similarly, this difference is not statistically significant (p=0.191).
+
+## Discussion of Differences
+Current Smokers vs. Former and Never Smokers:
+The differences in cholesterol levels between current smokers and the other two groups (former and never smokers) are small and not statistically significant. This suggests that smoking status may not have a substantial or direct influence on cholesterol levels in this dataset, after accounting for BMI and age.
+However, the model does indicate slightly lower cholesterol levels for former and never smokers compared to current smokers.
+
+
+The evidence is insufficient to draw strong conclusions about the relationship between smoking status and cholesterol in this dataset.
+
+```{r}
+# Create a jitter plot showing cholesterol distribution by smoking status
+ggplot(data = all_filtered, aes(x = smoking_status, y = chol, color = smoking_status)) +
+  geom_jitter(width = 0.2, alpha = 0.6) + # Jitter points to reduce overlap
+  geom_smooth(method = "lm", aes(group = smoking_status), se = TRUE, linetype = "dashed") + # Add smooth line
+  labs(
+    title = "Cholesterol Levels by Smoking Status",
+    x = "Smoking Status",
+    y = "Cholesterol (mg/dL)",
+    color = "Smoking Status"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    plot.title = element_text(size = 16, face = "bold"),
+    axis.title = element_text(size = 14)
+  )
+```
+
